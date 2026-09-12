@@ -83,12 +83,16 @@ The game auto-serves the frontend at `http://localhost:8000`.
 For Software:
 
 # Screenshots (Add at least 3)
-![Screenshot1](ScreenShots\ss1.png)
+<!-- ![Screenshot1](ScreenShots\ss1.png) -->
 <img width="1280" height="640" alt="git (1)" src="ScreenShots\ss1.png" />
 
-![Screenshot2](ScreenShots\ss2.png)
+<!-- ![Screenshot2](ScreenShots\ss2.png) -->
+<img width="1280" height="640" alt="git (1)" src="ScreenShots\ss2.png" />
 
-![Screenshot3](ScreenShots\ss3.png)
+
+<!-- ![Screenshot3](ScreenShots\ss3.png) -->
+<img width="1280" height="640" alt="git (1)" src="ScreenShots\ss3.png" />
+
 
 # Diagrams
 ![Workflow](Add your workflow/architecture diagram here)
@@ -96,7 +100,9 @@ For Software:
 
 ### Project Demo
 # Video
-[ScreenShots\video1.mp4]
+<!-- [ScreenShots\video1.mp4] -->
+<video src="ScreenShots\video1.mp4" width="60%" controls></video>
+
 
 # Additional Demos
 - Live at: `http://localhost:8000` after running the backend
