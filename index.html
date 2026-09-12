@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mosquito Mayhem — The Useless Mosquito Killer</title>
+    <meta name="description" content="Kill virtual mosquitoes that never existed using your real webcam, hands, and physical claps!">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <!-- MediaPipe CDNs -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- Main Game Canvas -->
+        <canvas id="game-canvas"></canvas>
+        <video id="webcam-video" autoplay playsinline muted style="display: none;"></video>
+
+        <!-- UI Overlays & Screens -->
+        <div id="ui-layer">
+            
+            <!-- Audio Mute Control -->
+            <button id="mute-btn" class="icon-btn" title="Toggle Sound">
+                <span id="mute-icon">🔊</span>
+            </button>
+
+            <!-- 1. START SCREEN -->
+            <div id="start-screen" class="screen active">
+                <div class="glass-card start-card">
+                    <div class="logo-container">
+                        <span class="logo-icon">🦟</span>
+                        <h1 class="game-title">MOSQUITO<br><span class="highlight">MAYHEM</span></h1>
+                        <p class="subtitle">THE USELESS MOSQUITO KILLER</p>
+                    </div>
+                    
+                    <p class="tagline">"You spent a minute killing mosquitoes that never existed."</p>
+
+                    <div class="rules-box">
+                        <div class="rule-item">
+                            <span class="rule-icon">⏱️</span>
+                            <span><strong>60 SECONDS</strong> on the clock</span>
+                        </div>
+                        <div class="rule-item">
+                            <span class="rule-icon">✋</span>
+                            <span><strong>SWAT & AIM</strong> with your hands in front of camera</span>
+                        </div>
+                        <div class="rule-item">
+                            <span class="rule-icon">👏</span>
+                            <span><strong>CLAP LOUDLY</strong> at the right moment to kill!</span>
+                        </div>
+                    </div>
+
+                    <div class="high-score-badge">
+                        🏆 BEST SCORE: <span id="start-high-score">0</span> KILLS
+                    </div>
+
+                    <button id="btn-start" class="btn btn-primary pulse">START GAME 🚀</button>
+                </div>
+            </div>
+
+            <!-- 2. PERMISSION SCREEN -->
+            <div id="permission-screen" class="screen hidden">
+                <div class="glass-card perm-card">
+                    <h2>📷 🎤 ACCESS REQUIRED</h2>
+                    <p>To hunt mosquitoes in your room, Mosquito Mayhem requires access to your <strong>Camera</strong> and <strong>Microphone</strong>.</p>
+                    
+                    <div class="perm-status-list">
+                        <div id="cam-status" class="perm-status">
+                            <span class="icon">📷</span> Camera Status: <span class="status-text pending">Requesting...</span>
+                        </div>
+                        <div id="mic-status" class="perm-status">
+                            <span class="icon">🎤</span> Microphone Status: <span class="status-text pending">Requesting...</span>
+                        </div>
+                    </div>
+
+                    <p class="privacy-note">🔒 All video and audio processing happens 100% locally in your browser. Nothing is recorded or transmitted.</p>
+                    
+                    <button id="btn-request-perm" class="btn btn-primary">GRANT ACCESS & CONTINUE</button>
+                    <button id="btn-fallback-mode" class="btn btn-secondary mt-10">USE MOUSE / TOUCH FALLBACK 🖱️</button>
+                </div>
+            </div>
+
+            <!-- 3. CALIBRATION SCREEN -->
+            <div id="calibration-screen" class="screen hidden">
+                <div class="glass-card cal-card">
+                    <h2>👏 MICROPHONE CALIBRATION</h2>
+                    <p>Clap your hands loudly <strong>TWICE</strong> so we can calibrate your room's clap power threshold!</p>
+                    
+                    <div class="calibration-meters">
+                        <div class="meter-group">
+                            <label>AMBIENT NOISE FLOOR:</label>
+                            <div class="meter-bar-container">
+                                <div id="ambient-meter" class="meter-bar color-blue" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <div class="meter-group">
+                            <label>YOUR CLAP POWER:</label>
+                            <div class="meter-bar-container">
+                                <div id="clap-power-meter" class="meter-bar color-green" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="cal-status-box" class="status-box waiting">
+                        <span id="cal-status-text">LISTEN FOR CLAP 1 OF 2...</span>
+                    </div>
+
+                    <button id="btn-skip-cal" class="btn btn-primary mt-15">START KILLING NOW! 🚀</button>
+                </div>
+            </div>
+
+            <!-- 4. COUNTDOWN OVERLAY -->
+            <div id="countdown-screen" class="screen hidden">
+                <div class="countdown-wrapper">
+                    <div id="countdown-number" class="countdown-text">3</div>
+                    <div id="countdown-subtext" class="countdown-subtext">GET READY!</div>
+                </div>
+            </div>
+
+            <!-- 5. IN-GAME HUD -->
+            <div id="hud" class="hud-layer hidden">
+                <!-- Top HUD Bar -->
+                <div class="hud-top-bar">
+                    <div class="hud-box kills-box">
+                        <span class="hud-label">🩸 KILLS</span>
+                        <span id="hud-kills" class="hud-val">0</span>
+                    </div>
+
+                    <div class="hud-box timer-box">
+                        <span class="hud-label">⏱️ TIME</span>
+                        <span id="hud-timer" class="hud-val">01:00</span>
+                    </div>
+
+                    <div class="hud-box streak-box">
+                        <span class="hud-label">🔥 STREAK</span>
+                        <span id="hud-streak" class="hud-val">0</span>
+                    </div>
+
+                    <div class="hud-box accuracy-box">
+                        <span class="hud-label">🎯 ACCURACY</span>
+                        <span id="hud-accuracy" class="hud-val">100%</span>
+                    </div>
+                </div>
+
+                <!-- Bottom HUD Bar -->
+                <div class="hud-bottom-bar">
+                    <div class="hud-box level-box">
+                        <span class="hud-label">LEVEL <span id="hud-level-num">1</span></span>
+                        <span id="hud-level-desc" class="level-desc">SLOW MOSQUITOES</span>
+                    </div>
+
+                    <div class="hud-box clap-power-box">
+                        <span class="hud-label">👏 CLAP INTENSITY</span>
+                        <div class="clap-bar-wrapper">
+                            <div id="hud-clap-bar" class="hud-clap-bar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="hud-box population-box">
+                        <span class="hud-label">🦟 POPULATION</span>
+                        <span id="hud-population" class="hud-val">-0</span>
+                    </div>
+                </div>
+
+                <!-- Combo Popup Overlay Container -->
+                <div id="combo-popup" class="combo-popup hidden">
+                    <span id="combo-text">🔥 3 HIT COMBO!</span>
+                </div>
+            </div>
+
+            <!-- 6. GAME OVER SCREEN -->
+            <div id="gameover-screen" class="screen hidden">
+                <div class="glass-card gameover-card">
+                    <h2 class="title-red">🦟 WAR COMPLETE! 🦟</h2>
+                    <p class="gameover-sub">You spent 60 seconds destroying virtual bugs!</p>
+
+                    <div class="final-score-container">
+                        <div class="kill-hero">
+                            <span class="kill-number" id="final-kills">0</span>
+                            <span class="kill-label">MOSQUITOES KILLED</span>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-icon">🎯</span>
+                            <span class="stat-name">Accuracy:</span>
+                            <span id="final-accuracy" class="stat-val">0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">😂</span>
+                            <span class="stat-name">Misses:</span>
+                            <span id="final-misses" class="stat-val">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">🔥</span>
+                            <span class="stat-name">Best Streak:</span>
+                            <span id="final-streak" class="stat-val">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">🏆</span>
+                            <span class="stat-name">Best Score:</span>
+                            <span id="final-best" class="stat-val">0</span>
+                        </div>
+                    </div>
+
+                    <div class="rank-badge-box">
+                        <span class="badge-title">YOUR RANK</span>
+                        <div id="final-rank-badge" class="badge-tag">👏 PROFESSIONAL CLAPPER</div>
+                    </div>
+
+                    <div id="achievement-unlocked-box" class="achievement-unlocked hidden">
+                        🏅 NEW ACHIEVEMENT: <span id="achievement-name">MOSQUITO DESTROYER</span>
+                    </div>
+
+                    <div class="gameover-actions">
+                        <button id="btn-play-again" class="btn btn-primary pulse">PLAY AGAIN 🔄</button>
+                        <button id="btn-share" class="btn btn-secondary">SHARE SCORE 📢</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Impact Screen Flash -->
+        <div id="screen-flash" class="screen-flash-overlay"></div>
+    </div>
+
+    <!-- Main JS Modules -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
