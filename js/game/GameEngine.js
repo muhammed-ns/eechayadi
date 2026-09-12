@@ -32,7 +32,6 @@ import { PermissionUI } from '../ui/PermissionUI.js';
 import { CalibrationScreen } from '../ui/CalibrationScreen.js';
 import { GameOverScreen } from '../ui/GameOver.js';
 import { WebSocketClient } from '../backend/WebSocketClient.js';
-import { NativeMotionVision } from '../vision/NativeMotionVision.js';
 
 export class GameEngine {
     constructor() {
@@ -54,7 +53,6 @@ export class GameEngine {
         this.handTracker = new HandTracker(this.canvas, this.video);
         this.handVelocity = new HandVelocity();
         this.faceTracker = new FaceTracker(this.canvas, this.video);
-        this.nativeVision = new NativeMotionVision(this.canvas, this.video);
 
         this.microphone = new Microphone();
         this.calibration = new ClapCalibration(this.microphone);
@@ -126,29 +124,53 @@ export class GameEngine {
     onStartClicked() {
         this.sound.init();
         this.startScreen.hide();
+        this.state.set(STATES.PERMISSION);
+        // Automatically request camera & mic access on start click!
         this.requestHardwareAccess();
     }
 
-    requestHardwareAccess() {
-        // Non-blocking background hardware requests
-        this.camera.start().then(cam => {
-            if (this.permissionUI) this.permissionUI.updateCamStatus(cam);
-        }).catch(e => {
-            console.warn("Camera init warning:", e);
-        });
+    async requestHardwareAccess() {
+        this.permissionUI.show();
 
-        this.microphone.init().then(mic => {
-            if (this.permissionUI) this.permissionUI.updateMicStatus(mic);
-        }).catch(e => {
-            console.warn("Microphone init warning:", e);
-        });
+        let camGranted = false;
+        let micGranted = false;
 
-        this.handTracker.init().catch(() => {});
-        this.faceTracker.init().catch(() => {});
+        try {
+            camGranted = await this.camera.start();
+            this.permissionUI.updateCamStatus(camGranted);
+        } catch (e) {
+            console.warn("Camera access failed:", e);
+            this.permissionUI.updateCamStatus(false);
+        }
 
-        // Launch 3-2-1 countdown & gameplay IMMEDIATELY with 0ms delay!
-        this.calibration.setDefaults();
-        this.startCountdown();
+        try {
+            micGranted = await this.microphone.init();
+            this.permissionUI.updateMicStatus(micGranted);
+        } catch (e) {
+            console.warn("Microphone access failed:", e);
+            this.permissionUI.updateMicStatus(false);
+        }
+
+        try {
+            await this.handTracker.init();
+        } catch (e) {
+            console.warn("HandTracker init failed:", e);
+        }
+
+        try {
+            await this.faceTracker.init();
+        } catch (e) {
+            console.warn("FaceTracker init failed:", e);
+        }
+
+        setTimeout(() => {
+            this.permissionUI.hide();
+            if (micGranted) {
+                this.startCalibration();
+            } else {
+                this.skipCalibration();
+            }
+        }, 1200);
     }
 
     startFallbackMode() {
@@ -314,37 +336,33 @@ export class GameEngine {
                 setTimeout(() => this.skipCalibration(), 1000);
             }
         } else if (this.state.current === STATES.PLAYING) {
-            // Process MediaPipe Hand & Face Frames + Native Optical Flow Vision
+            // Process MediaPipe Hand & Face Frames
             this.handTracker.processFrame();
             this.faceTracker.processFrame();
-            this.nativeVision.processFrame(timestamp);
-
-            // Active Hand Tracker selection (MediaPipe or Native Optical Flow Fallback)
-            const activeHandTracker = this.handTracker.isHandVisible ? this.handTracker : this.nativeVision;
 
             // Update Timer & Difficulty
             this.timer.update(timestamp);
             const diffInfo = this.difficulty.update(this.score.kills);
 
-            // Update Hand Velocity Solver
-            const vel = this.handVelocity.update(activeHandTracker.handPosition, timestamp);
+            // Update Hand Tracking & Velocity Solver
+            const vel = this.handVelocity.update(this.handTracker.handPosition, timestamp);
 
             // Update Mosquito Swarm & AI (Targeting Player's Face!)
-            this.mosquitoes.update(activeHandTracker.handPosition, diffInfo.level, timestamp, this.faceTracker.facePosition);
+            this.mosquitoes.update(this.handTracker.handPosition, diffInfo.level, timestamp, this.faceTracker.facePosition);
             this.mosquitoes.draw(this.ctx);
 
-            // Detect Physical Audio Claps or Dual Hand Claps (MediaPipe + Native Optical Flow)
+            // Detect Physical Audio Claps or Dual Hand Claps
             const clap = this.clapDetector.update(timestamp);
-            const isHandClap = this.handTracker.isClapping || this.nativeVision.isClapping;
+            const isHandClap = this.handTracker.isClapping;
 
             if (clap.detected || isHandClap) {
                 const evaluation = this.hitDetector.evaluate({
-                    clap: { detected: true, intensity: clap.detected ? clap.intensity : 0.88 },
-                    handTracker: activeHandTracker,
+                    clap: { detected: true, intensity: clap.detected ? clap.intensity : 0.85 },
+                    handTracker: this.handTracker,
                     handVelocity: vel,
                     mosquitoes: this.mosquitoes.active
                 });
-                this.processHitResult(evaluation, clap.intensity || 0.88);
+                this.processHitResult(evaluation, clap.intensity || 0.85);
             }
 
             // Update HUD UI
@@ -358,13 +376,9 @@ export class GameEngine {
                 clapIntensity: clap.intensity
             });
 
-            // Draw Face Target & Active Hand Vision Markers
+            // Draw Face Target & Hand Aiming Reticles
             this.faceTracker.drawFaceTarget();
-            if (this.handTracker.isHandVisible) {
-                this.handTracker.drawTargetReticle();
-            } else {
-                this.nativeVision.drawDebugVision(this.ctx);
-            }
+            this.handTracker.drawTargetReticle();
         }
 
         // 4. Update Floating Text Animations

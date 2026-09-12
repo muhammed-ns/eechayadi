@@ -44,18 +44,11 @@ export class FaceTracker {
         }
     }
 
-        this.lastProcessTime = 0;
-    }
-
     async processFrame() {
-        const now = performance.now();
-        if (now - this.lastProcessTime < 33) return; // Throttle AI face detection to 30 FPS
-
         if (this.isProcessingFrame || !this.isTracking || !this.faceDetector || !this.video || this.video.readyState !== 4) {
             return;
         }
 
-        this.lastProcessTime = now;
         this.isProcessingFrame = true;
         try {
             await this.faceDetector.send({ image: this.video });

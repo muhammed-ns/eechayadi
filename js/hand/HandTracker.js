@@ -53,22 +53,16 @@ export class HandTracker {
         }
     }
 
-        this.lastProcessTime = 0;
-    }
-
     async processFrame() {
-        const now = performance.now();
-        if (now - this.lastProcessTime < 33) return; // Throttle AI inference to 30 FPS for max smoothness
-
         if (this.isProcessingFrame || !this.isTracking || !this.hands || !this.video || this.video.readyState !== 4) {
             return;
         }
 
-        this.lastProcessTime = now;
         this.isProcessingFrame = true;
         try {
             await this.hands.send({ image: this.video });
         } catch (e) {
+            console.warn('Hands processFrame warning:', e);
         } finally {
             this.isProcessingFrame = false;
         }
