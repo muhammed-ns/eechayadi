@@ -17,6 +17,7 @@ sys.path.append(os.path.dirname(__file__))
 from database import init_db, get_top_leaderboard, submit_score
 from clap_analyzer import PythonClapAnalyzer
 from swarm_physics import PythonSwarmPhysics
+from gpu_runtime import get_gpu_status
 
 app = FastAPI(title="Mosquito Mayhem API")
 
@@ -40,7 +41,8 @@ def status():
     return {
         "status": "ONLINE",
         "engine": "Python 3.13 FastAPI + WebSockets",
-        "game": "Mosquito Mayhem Backend"
+        "game": "Mosquito Mayhem Backend",
+        "gpu": get_gpu_status()
     }
 
 @app.get("/api/leaderboard")

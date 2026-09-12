@@ -10,14 +10,7 @@ import math
 import random
 import time
 
-try:
-    import cupy as cp
-    xp = cp
-    GPU_ENABLED = True
-except Exception:
-    import numpy as np
-    xp = np
-    GPU_ENABLED = False
+from gpu_runtime import GPU_ENABLED, xp
 
 class PythonSwarmPhysics:
     def __init__(self, width=1280, height=720):
