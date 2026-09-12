@@ -101,7 +101,7 @@ For Software:
 ### Project Demo
 # Video
 <!-- [ScreenShots\video1.mp4] -->
-<video src="ScreenShots\video1.mp4" width="60%" controls></video>
+<video src="ScreenShots\video1.mp4" width="100%" controls></video>
 
 
 # Additional Demos
