@@ -38,15 +38,18 @@ export class Mosquito {
         this.vx += noiseX;
         this.vy += noiseY;
 
-        // 2. FACE ATTRACTOR: Mosquitoes target and swarm around the player's face!
+        // 2. FACE ATTRACTOR: Mosquitoes target and orbit directly around the player's face!
         if (facePos) {
-            const fdx = facePos.x - this.x;
-            const fdy = facePos.y - this.y;
+            const orbitX = facePos.x + Math.sin(time * 2 + this.id * 4) * 85;
+            const orbitY = facePos.y + Math.cos(time * 2 + this.id * 4) * 65;
+
+            const fdx = orbitX - this.x;
+            const fdy = orbitY - this.y;
             const fdist = Math.sqrt(fdx * fdx + fdy * fdy);
 
-            if (fdist > 60) {
-                // Steering force pulling mosquito towards player's face
-                const pullStrength = 0.4 + Math.sin(time * 2 + this.id) * 0.2;
+            if (fdist > 20) {
+                // Strong steering pull force keeping mosquito circling player's face
+                const pullStrength = 0.65;
                 this.vx += (fdx / fdist) * pullStrength;
                 this.vy += (fdy / fdist) * pullStrength;
             }

@@ -44,11 +44,24 @@ export class FaceTracker {
         }
     }
 
+        this.lastProcessTime = 0;
+    }
+
     async processFrame() {
-        if (this.isTracking && this.faceDetector && this.video && this.video.readyState === 4) {
-            try {
-                await this.faceDetector.send({ image: this.video });
-            } catch (e) {}
+        const now = performance.now();
+        if (now - this.lastProcessTime < 33) return; // Throttle AI face detection to 30 FPS
+
+        if (this.isProcessingFrame || !this.isTracking || !this.faceDetector || !this.video || this.video.readyState !== 4) {
+            return;
+        }
+
+        this.lastProcessTime = now;
+        this.isProcessingFrame = true;
+        try {
+            await this.faceDetector.send({ image: this.video });
+        } catch (e) {
+        } finally {
+            this.isProcessingFrame = false;
         }
     }
 
@@ -57,8 +70,18 @@ export class FaceTracker {
             const detection = results.detections[0];
             const boundingBox = detection.boundingBox;
 
-            const rawX = boundingBox.xCenter;
-            const rawY = boundingBox.yCenter;
+            let rawX = 0.5;
+            let rawY = 0.38;
+
+            if (boundingBox) {
+                if (typeof boundingBox.xCenter === 'number') {
+                    rawX = boundingBox.xCenter;
+                    rawY = boundingBox.yCenter;
+                } else if (typeof boundingBox.xMin === 'number') {
+                    rawX = boundingBox.xMin + (boundingBox.width || 0.2) / 2;
+                    rawY = boundingBox.yMin + (boundingBox.height || 0.25) / 2;
+                }
+            }
 
             // Mirror flip X coordinate because video view is mirrored
             const mirroredX = 1 - rawX;
@@ -69,7 +92,7 @@ export class FaceTracker {
             };
             this.isFaceVisible = true;
         } else {
-            // Keep estimating head position near center top
+            // Keep estimating head position near upper center of camera
             this.facePosition = { x: this.canvas.width / 2, y: this.canvas.height * 0.38 };
             this.isFaceVisible = true;
         }

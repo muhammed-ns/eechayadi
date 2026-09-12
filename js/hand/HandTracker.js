@@ -1,8 +1,10 @@
 /**
  * HandTracker.js
  * Tracks BOTH hands (left & right) using MediaPipe Hands (maxNumHands: 2).
- * Automatically detects the midpoint between hands when clapping. No mouse pointer!
+ * Powered by AIClapDetector for real-time camera hand clap gesture recognition. No mouse pointer!
  */
+import { AIClapDetector } from './AIClapDetector.js';
+
 export class HandTracker {
     constructor(canvas, video) {
         this.canvas = canvas;
@@ -17,6 +19,10 @@ export class HandTracker {
         this.isTracking = false;
         this.isClapping = false;
         this.handDistance = Infinity;
+
+        this.isProcessingFrame = false;
+        this.aiClapDetector = new AIClapDetector();
+        this.aiClapResult = { detected: false, speed: 0, distance: Infinity };
     }
 
     async init() {
@@ -30,12 +36,12 @@ export class HandTracker {
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
             });
 
-            // Set maxNumHands: 2 for dual hand tracking
+            // Lite model (0) ensures ultra-fast, smooth 60 FPS hand tracking
             this.hands.setOptions({
                 maxNumHands: 2,
-                modelComplexity: 1,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
+                modelComplexity: 0,
+                minDetectionConfidence: 0.35,
+                minTrackingConfidence: 0.35
             });
 
             this.hands.onResults((results) => this.onResults(results));
@@ -47,11 +53,24 @@ export class HandTracker {
         }
     }
 
+        this.lastProcessTime = 0;
+    }
+
     async processFrame() {
-        if (this.isTracking && this.hands && this.video && this.video.readyState === 4) {
-            try {
-                await this.hands.send({ image: this.video });
-            } catch (e) {}
+        const now = performance.now();
+        if (now - this.lastProcessTime < 33) return; // Throttle AI inference to 30 FPS for max smoothness
+
+        if (this.isProcessingFrame || !this.isTracking || !this.hands || !this.video || this.video.readyState !== 4) {
+            return;
+        }
+
+        this.lastProcessTime = now;
+        this.isProcessingFrame = true;
+        try {
+            await this.hands.send({ image: this.video });
+        } catch (e) {
+        } finally {
+            this.isProcessingFrame = false;
         }
     }
 
@@ -77,8 +96,9 @@ export class HandTracker {
                     y: (h1.y + h2.y) / 2
                 };
 
-                // Clapping state when hands are close together (< 140px)
-                this.isClapping = this.handDistance < 140;
+                // AI Hand Clap Kinematic Evaluation
+                this.aiClapResult = this.aiClapDetector.evaluate(this.leftHand, this.rightHand, performance.now());
+                this.isClapping = this.aiClapResult.detected || this.handDistance < 115;
                 this.isHandVisible = true;
 
             } else {
@@ -118,18 +138,18 @@ export class HandTracker {
 
         this.ctx.save();
 
-        // 1. Draw Left & Right Hand Palm Target Zones
+        // 1. Draw Left & Right Hand Palm Target Rings
         if (this.leftHand) {
-            this.drawHandMarker(this.leftHand.x, this.leftHand.y, '✋ LEFT');
+            this.drawHandMarker(this.leftHand.x, this.leftHand.y, '✋ LEFT HAND');
         }
         if (this.rightHand) {
-            this.drawHandMarker(this.rightHand.x, this.rightHand.y, '✋ RIGHT');
+            this.drawHandMarker(this.rightHand.x, this.rightHand.y, '✋ RIGHT HAND');
         }
 
-        // 2. Draw Connection Energy Line Between Both Hands
+        // 2. Draw AI Connection Energy Line & AI Telemetry Bar
         if (this.leftHand && this.rightHand) {
             this.ctx.strokeStyle = this.isClapping ? '#ff2a5f' : 'rgba(0, 229, 255, 0.6)';
-            this.ctx.lineWidth = this.isClapping ? 5 : 2;
+            this.ctx.lineWidth = this.isClapping ? 6 : 2;
             this.ctx.setLineDash([8, 6]);
             this.ctx.shadowColor = this.isClapping ? '#ff2a5f' : '#00e5ff';
             this.ctx.shadowBlur = 15;
@@ -140,19 +160,21 @@ export class HandTracker {
             this.ctx.stroke();
             this.ctx.setLineDash([]);
 
-            // Draw Clap Squish Zone Midpoint
+            // Draw AI Clap Impact Zone Midpoint
             const midX = this.handPosition.x;
             const midY = this.handPosition.y;
 
-            this.ctx.fillStyle = this.isClapping ? 'rgba(255, 42, 95, 0.8)' : 'rgba(0, 229, 255, 0.3)';
+            this.ctx.fillStyle = this.isClapping ? 'rgba(255, 42, 95, 0.95)' : 'rgba(0, 229, 255, 0.35)';
             this.ctx.beginPath();
-            this.ctx.arc(midX, midY, this.isClapping ? 40 : 20, 0, Math.PI * 2);
+            this.ctx.arc(midX, midY, this.isClapping ? 50 : 25, 0, Math.PI * 2);
             this.ctx.fill();
 
             if (this.isClapping) {
                 this.ctx.fillStyle = '#ffffff';
-                this.ctx.font = 'bold 16px Outfit, sans-serif';
-                this.ctx.fillText('💥 CLAP ZONE!', midX - 45, midY - 45);
+                this.ctx.font = '900 18px Outfit, sans-serif';
+                this.ctx.shadowColor = '#ff2a5f';
+                this.ctx.shadowBlur = 20;
+                this.ctx.fillText('🤖 AI CLAP DETECTED! 💥', midX - 95, midY - 60);
             }
         }
 
@@ -167,7 +189,7 @@ export class HandTracker {
 
         // Glowing palm ring
         this.ctx.beginPath();
-        this.ctx.arc(x, y, 28, 0, Math.PI * 2);
+        this.ctx.arc(x, y, 30, 0, Math.PI * 2);
         this.ctx.stroke();
 
         // Inner core
@@ -179,6 +201,6 @@ export class HandTracker {
         // Label
         this.ctx.fillStyle = '#ffffff';
         this.ctx.font = 'bold 12px Outfit, sans-serif';
-        this.ctx.fillText(label, x - 20, y + 45);
+        this.ctx.fillText(label, x - 35, y + 48);
     }
 }

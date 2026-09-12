@@ -1,38 +1,41 @@
-# 🦟 MOSQUITO MAYHEM — THE USELESS MOSQUITO KILLER
+# 🦟 MOSQUITO MAYHEM — THE USELESS MOSQUITO KILLER (Python AI Edition)
 
 > **“You spent a minute killing mosquitoes that never existed.”**
 
-**Mosquito Mayhem** is a browser-based interactive arcade game that uses your webcam, MediaPipe hand tracking, microphone real-time audio clap detection, physics, and HTML5 Canvas to let you physically clap and swat virtual mosquitoes floating in your room.
+**Mosquito Mayhem** is an advanced browser-based interactive game powered by a high-performance **Python 3.13 FastAPI + WebSockets** backend. It combines live webcam video feeds, MediaPipe dual hand computer vision, player face tracking, Python acoustic clap signal processing (FFT & PAPR), physics swarm dynamics, and SQLite leaderboards.
 
 ---
 
-## 🎮 Features
+## 🐍 Python Backend Architecture
 
-- 📷 **Live Webcam Background**: Horizontally mirrored webcam feed acting like an interactive mirror.
-- ✋ **MediaPipe Hand Tracking**: Real-time hand landmark tracking and physical swat velocity calculation.
-- 🎤 **Web Audio API Clap Detection**: Dynamic audio calibration and peak RMS energy spike detection to measure physical clap power.
-- 🦟 **Virtual Mosquito Physics & AI**: Erratically moving mosquitoes with 40Hz flapping translucent wings, speech bubbles on miss, hand avoidance fleeing AI, and special variants (Golden, Speed, Boss).
-- 🩸 **Visual & Audio Splatter Effects**: Dynamic blood particle explosions, persistent lens decals, floating arcade text, screen flashes, and procedurally synthesized Web Audio sound effects.
-- 🏆 **Arcade HUD & Progression**: 60-second timer, 5 difficulty levels, kill streak combos, ranks, achievements, and LocalStorage high score saving.
+- **FastAPI & Uvicorn Server**: Running on port `8000` (`backend/server.py`).
+- **Real-Time WebSockets (`ws://localhost:8000/ws/game`)**: Bi-directional communication for acoustic signal analysis and server-side swarm trajectory updates.
+- **SQLite Database (`backend/mosquito_mayhem.db`)**: Persistent global leaderboards, player stats, rank titles, and match history (`backend/database.py`).
+- **Python FFT Acoustic Clap Analyzer (`backend/clap_analyzer.py`)**: Uses NumPy for spectral centroid calculations and peak-to-average power ratio (PAPR) analysis to identify physical claps.
+- **Python Swarm Physics Engine (`backend/swarm_physics.py`)**: Solves server-side wind dynamics, face attractor vectors, and dual hand avoidance forces.
+
+---
+
+## 🎮 Gameplay & Computer Vision
+
+- 📷 **Live Mirrored Camera View**: Video feed mirrored horizontally on HTML5 Canvas.
+- 🎯 **Player Face Detection (`FaceTracker.js`)**: Tracks the player's head and draws a `🎯 TARGET FACE` halo. Mosquitoes are naturally attracted to and orbit around the player's face.
+- ✋ **Dual Hand Computer Vision (`HandTracker.js`)**: Tracks both Left & Right hands using MediaPipe Hands (`maxNumHands: 2`).
+- 💥 **Clap Zone & Trapped Mosquitoes (`HitDetector.js`)**: Detects when mosquitoes are trapped between hands in the `💥 CLAP ZONE` during physical claps.
+- 🩸 **Dripping Blood Lens Splatters (`BloodEffect.js`)**: Explosive blood droplet particles, screen lens decals, and dripping blood droplets sliding down the screen.
 
 ---
 
 ## 🚀 How to Run
 
-1. Open `index.html` in any modern web browser (Chrome, Edge, Firefox, Safari).
-2. Click **START GAME**.
-3. Allow **Camera** and **Microphone** access.
-4. Complete the 2-clap **Calibration** phase.
-5. Aim with your hand and **CLAP LOUDLY** to swat the mosquitoes!
+### Option A: Complete Python Backend Server (Recommended)
+```bash
+python backend/server.py
+```
+Then navigate to: `http://localhost:8000`
 
----
-
-## 🛠️ Technology Stack
-
-- HTML5 & CSS3 (Glassmorphism Arcade Theme)
-- Vanilla JavaScript (ES Modules)
-- MediaPipe Hands (CDN)
-- WebRTC `getUserMedia()`
-- Web Audio API (Audio Context, AnalyserNode, Procedural Sound Synthesizer)
-- HTML5 Canvas Engine
-- LocalStorage Persistence
+### Option B: Uvicorn Direct Launch
+```bash
+python -m uvicorn backend.server:app --host 0.0.0.0 --port 8000
+```
+Then navigate to: `http://localhost:8000`
