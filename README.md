@@ -2,7 +2,7 @@
 
 
 
-# 🦟 Mosquito Slicer — The Useless Mosquito Killer
+# 🦟 Eechayadi — The Useless Mosquito Killer
 
 ## Basic Details
 ### Team Name: Onnulla
