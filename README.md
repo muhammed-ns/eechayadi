@@ -32,14 +32,11 @@ For Software:
   - SQLite (leaderboard persistence via Python `database.py`)
 - **Tools**: VS Code, Python venv, npm-free vanilla JS modules
 
-For Hardware:
-- Any laptop/desktop with a **webcam** (720p+ recommended)
-- A **microphone** (optional — for audio clap backup detection)
-- Hands (required — minimum 2)
-- A face (required — mosquitoes need something to orbit)
-
 ### Implementation
-For Software:
+For Software:-Any laptop/desktop with a webcam (720p+ recommended)
+             -A microphone (optional — for audio clap backup detection)
+             -Hands (required — minimum 2)
+             -A face (required — mosquitoes need something to orbit)
 # Installation
 
 ```bash
